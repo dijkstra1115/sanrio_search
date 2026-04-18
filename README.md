@@ -36,6 +36,22 @@ Do not use `xvfb-run -a playwright-cli` together with `PLAYWRIGHT_HEADLESS=true`
 uvicorn app.main:app --host 0.0.0.0 --port 8080
 ```
 
+## Local Smoke Test
+
+Run the same lookup flow locally before redeploying:
+
+```bash
+python -m app.scripts.smoke_lookup --image-path ./messageImage_1776450410880.jpg --json
+```
+
+To mimic the Zeabur container locally:
+
+```powershell
+./scripts/smoke_zeabur.ps1 -ImagePath .\messageImage_1776450410880.jpg
+```
+
+Use `-Headed` only when you explicitly want the Linux container path with `xvfb-run`.
+
 ## Deploy
 
 This repo includes a [Dockerfile](./Dockerfile) intended for Zeabur deployment.
