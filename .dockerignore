@@ -1,0 +1,13 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.playwright
+.playwright-cli
+.claude
+.codex
+messageImage_*.jpg
+kv-goods-*.jpg
