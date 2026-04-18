@@ -50,7 +50,7 @@ APP_BASE_URL=https://你的ngrok網域
    ngrok config add-authtoken 你的token
    ```
 3. 到 **Domains** 頁面領取一個免費固定網域（如 `xxx.ngrok-free.dev`）
-4. 把這個網域填到 `scripts/start.ps1` 裡的 `$NGROK_DOMAIN` 變數
+4. 把 `https://你的網域` 填到 `.env` 的 `APP_BASE_URL`（啟動腳本會自動從這裡提取 ngrok 網域）
 5. 把 `https://你的網域/webhook` 設為 LINE Developers Console 的 Webhook URL（只需設定一次）
 
 ### 6. 一鍵啟動

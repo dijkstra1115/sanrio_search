@@ -12,9 +12,6 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-# ── Config ───────────────────────────────────────────────────────
-$NGROK_DOMAIN = "mortuary-tag-goofiness.ngrok-free.dev"
-
 $ROOT = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Definition)
 Set-Location $ROOT
 [System.IO.Directory]::SetCurrentDirectory($ROOT)
@@ -53,6 +50,20 @@ if (-not $env:LINE_CHANNEL_SECRET -or $env:LINE_CHANNEL_SECRET -eq "your_line_ch
     exit 1
 }
 Write-Ok ".env loaded"
+
+# ── Extract ngrok domain from APP_BASE_URL ──────────────────────
+if (-not $env:APP_BASE_URL) {
+    Write-Err "APP_BASE_URL is not set. Please edit .env first."
+    Read-Host "Press Enter to exit"
+    exit 1
+}
+$NGROK_DOMAIN = ([System.Uri]$env:APP_BASE_URL).Host
+if (-not $NGROK_DOMAIN) {
+    Write-Err "Could not extract domain from APP_BASE_URL ($env:APP_BASE_URL)."
+    Read-Host "Press Enter to exit"
+    exit 1
+}
+Write-Ok "ngrok domain: $NGROK_DOMAIN"
 
 # ── 2. Check Python ──────────────────────────────────────────────
 Write-Step "Checking Python"
