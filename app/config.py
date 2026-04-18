@@ -34,7 +34,6 @@ class Settings:
     lookup_timeout_seconds: float
     playwright_cli_command: str
     playwright_headless: bool
-    playwright_fallback_to_headed: bool
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -46,5 +45,4 @@ class Settings:
             lookup_timeout_seconds=_env_float("LOOKUP_TIMEOUT_SECONDS", default=45.0),
             playwright_cli_command=os.getenv("PLAYWRIGHT_CLI_COMMAND", "").strip(),
             playwright_headless=_env_flag("PLAYWRIGHT_HEADLESS", default=False),
-            playwright_fallback_to_headed=_env_flag("PLAYWRIGHT_FALLBACK_TO_HEADED", default=False),
         )

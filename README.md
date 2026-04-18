@@ -1,64 +1,94 @@
 # sanrio_search
 
-LINE webhook service that accepts image messages, sends them to Google Lens through `playwright-cli`, and replies with a preferred URL.
+LINE webhook bot — 收到圖片訊息後透過 Google Lens 搜圖，回覆最符合的 URL。
 
-## Behavior
+匹配優先順序：`www.sanrio.co.jp` > `*.sanrio.co.jp` > 任何 `.jp` 網域。
 
-- Prefer `www.sanrio.co.jp`
-- Then prefer other `*.sanrio.co.jp`
-- Otherwise return the first visible `.jp` result
-- Reply with the matched URL only
+## 在新電腦上部署
 
-## Environment Variables
+### 1. 安裝必要軟體
 
-Use [.env.example](./.env.example) as the reference.
+| 軟體 | 用途 | 安裝方式 |
+|------|------|----------|
+| **Python 3.12+** | 執行服務 | https://www.python.org/downloads/ |
+| **Node.js 18+** | playwright-cli 需要 | https://nodejs.org/ |
+| **ngrok** | 將本機暴露為公開 HTTPS 網址 | `winget install ngrok.ngrok` |
 
-Required:
+### 2. 下載專案
 
-- `LINE_CHANNEL_SECRET`
-- `LINE_CHANNEL_ACCESS_TOKEN`
-- `APP_BASE_URL`
+```bash
+git clone https://github.com/dijkstra1115/sanrio_search.git
+cd sanrio_search
+```
 
-Recommended for Zeabur:
+### 3. 安裝依賴
 
-- `LOOKUP_TIMEOUT_SECONDS=45`
-- `PLAYWRIGHT_HEADLESS=false`
-- `PLAYWRIGHT_CLI_COMMAND=playwright-cli`
+```bash
+pip install -r requirements.txt
+npm install -g @playwright/cli@latest
+```
 
-If you want to experiment with lower resource usage later, switch to:
+### 4. 設定環境變數
 
-- `PLAYWRIGHT_HEADLESS=true`
-- `PLAYWRIGHT_FALLBACK_TO_HEADED=true`
+```bash
+cp .env.example .env
+```
 
-The Docker image now starts a long-lived Xvfb display at container startup, so headed lookups there should use plain `playwright-cli`. Do not wrap each CLI call in `xvfb-run`, because that can tear down the display between `open` and follow-up commands.
-For direct Linux or WSL `uvicorn` runs outside the container, leave `PLAYWRIGHT_CLI_COMMAND` unset unless you already have a long-lived X display. In that path the app falls back to `xvfb-run -a playwright-cli` for headed lookups.
-The service now processes one image lookup at a time and times out stuck lookups, which helps avoid multiple concurrent headed browser sessions exhausting small Zeabur instances.
-The current default is headed mode because Google Lens uploads are currently being redirected to `/sorry/` in headless mode.
+編輯 `.env`，填入：
 
-## Local Run
+```
+LINE_CHANNEL_SECRET=你的_LINE_Channel_Secret
+LINE_CHANNEL_ACCESS_TOKEN=你的_LINE_Channel_Access_Token
+APP_BASE_URL=https://你的ngrok網域
+```
+
+### 5. 設定 ngrok
+
+1. 到 https://ngrok.com 註冊免費帳號
+2. 到 Dashboard 取得 authtoken 並執行：
+   ```bash
+   ngrok config add-authtoken 你的token
+   ```
+3. 到 **Domains** 頁面領取一個免費固定網域（如 `xxx.ngrok-free.dev`）
+4. 把這個網域填到 `scripts/start.ps1` 裡的 `$NGROK_DOMAIN` 變數
+5. 把 `https://你的網域/webhook` 設為 LINE Developers Console 的 Webhook URL（只需設定一次）
+
+### 6. 一鍵啟動
+
+雙擊專案根目錄的 `start.bat`。
+
+腳本會自動：檢查環境 → 安裝缺少的依賴 → 啟動 ngrok 隧道 → 啟動服務。
+
+按 `Ctrl+C` 停止。
+
+## 手動啟動（不用 ngrok）
 
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8080
 ```
 
-## Local Smoke Test
+需要自行處理公網暴露和 HTTPS。
 
-Run the same lookup flow locally before redeploying:
+## 本機測試
 
 ```bash
-python -m app.scripts.smoke_lookup --image-path ./messageImage_1776450410880.jpg --json
+python -m app.scripts.smoke_lookup --image-path ./your_image.jpg --json
 ```
 
-Use `--headless` only when you explicitly want to test the lower-resource mode.
+## 環境變數說明
 
-To mimic the Zeabur container locally:
+| 變數 | 必填 | 預設值 | 說明 |
+|------|------|--------|------|
+| `LINE_CHANNEL_SECRET` | 是 | — | LINE Channel Secret |
+| `LINE_CHANNEL_ACCESS_TOKEN` | 是 | — | LINE Channel Access Token |
+| `APP_BASE_URL` | 是 | — | 服務公開 URL |
+| `LOG_LEVEL` | 否 | `INFO` | 日誌等級 |
+| `LOOKUP_TIMEOUT_SECONDS` | 否 | `45` | 單次搜圖超時秒數 |
+| `PLAYWRIGHT_HEADLESS` | 否 | `false` | 無頭模式（目前會被 Google 擋，建議 `false`） |
+| `PLAYWRIGHT_CLI_COMMAND` | 否 | 自動偵測 | 覆寫 playwright-cli 指令 |
 
-```powershell
-./scripts/smoke_zeabur.ps1 -ImagePath .\messageImage_1776450410880.jpg
-```
+## 注意事項
 
-Use `-Headed` only when you want to force an explicit headed CLI run inside the container.
-
-## Deploy
-
-This repo includes a [Dockerfile](./Dockerfile) intended for Zeabur deployment.
+- Google Lens 會在無頭模式下偵測並阻擋請求（跳轉到 `/sorry/`），因此預設使用有頭模式。
+- 服務同一時間只處理一張圖片，後續請求會收到「請稍候」的回覆。
+- 連續被 Google 阻擋時會啟動指數退避冷卻（5 分鐘 → 30 分鐘 → 2 小時）。

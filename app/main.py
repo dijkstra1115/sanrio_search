@@ -12,7 +12,7 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from app.config import Settings
-from app.lens_lookup import find_preferred_url
+from app.lens_lookup import GoogleBotBlockedError, find_preferred_url
 from app.line_api import fetch_message_content, reply_text, verify_signature
 
 
@@ -31,6 +31,10 @@ def build_busy_message() -> str:
 
 def build_error_message() -> str:
     return "Image lookup failed. Please try again in a moment."
+
+
+def build_cooldown_message() -> str:
+    return "Image lookup is temporarily paused due to rate limiting. Please try again later."
 
 
 @app.on_event("startup")
@@ -99,7 +103,9 @@ async def _handle_image_event(event: dict[str, Any]) -> str:
         elif content_type and "webp" in content_type:
             suffix = ".webp"
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp_dir = Path(__file__).resolve().parent.parent / ".tmp"
+        tmp_dir.mkdir(exist_ok=True)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix, dir=tmp_dir) as tmp:
             tmp.write(content)
             tmp_path = Path(tmp.name)
 
@@ -109,7 +115,6 @@ async def _handle_image_event(event: dict[str, Any]) -> str:
                 session_name=f"line-image-{message_id}",
                 cli_command=settings.playwright_cli_command or None,
                 headless=settings.playwright_headless,
-                fallback_to_headed=settings.playwright_fallback_to_headed,
             ),
             timeout=settings.lookup_timeout_seconds,
         )
@@ -136,6 +141,9 @@ async def _build_reply_text(event: dict[str, Any]) -> str | None:
     if message_type == "image":
         try:
             return await _handle_image_event(event)
+        except GoogleBotBlockedError:
+            logger.warning("Image lookup blocked by Google (cooldown active)")
+            return build_cooldown_message()
         except Exception:
             logger.exception("Image lookup failed")
             return build_error_message()
