@@ -62,7 +62,12 @@ async def _run_cli(cli_command: str, *args: str) -> str:
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
-    stdout, stderr = await process.communicate()
+    try:
+        stdout, stderr = await process.communicate()
+    except asyncio.CancelledError:
+        process.kill()
+        await process.communicate()
+        raise
     stdout_text = stdout.decode("utf-8", errors="replace")
     stderr_text = stderr.decode("utf-8", errors="replace")
 

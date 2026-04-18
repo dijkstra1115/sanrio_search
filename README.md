@@ -21,6 +21,7 @@ Required:
 
 Recommended for Zeabur:
 
+- `LOOKUP_TIMEOUT_SECONDS=45`
 - `PLAYWRIGHT_HEADLESS=false`
 - `PLAYWRIGHT_CLI_COMMAND=playwright-cli`
 
@@ -31,6 +32,7 @@ If you want to experiment with lower resource usage later, switch to:
 
 The Docker image now starts a long-lived Xvfb display at container startup, so headed lookups there should use plain `playwright-cli`. Do not wrap each CLI call in `xvfb-run`, because that can tear down the display between `open` and follow-up commands.
 For direct Linux or WSL `uvicorn` runs outside the container, leave `PLAYWRIGHT_CLI_COMMAND` unset unless you already have a long-lived X display. In that path the app falls back to `xvfb-run -a playwright-cli` for headed lookups.
+The service now processes one image lookup at a time and times out stuck lookups, which helps avoid multiple concurrent headed browser sessions exhausting small Zeabur instances.
 The current default is headed mode because Google Lens uploads are currently being redirected to `/sorry/` in headless mode.
 
 ## Local Run

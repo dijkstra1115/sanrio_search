@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import tempfile
@@ -21,7 +22,15 @@ app = FastAPI(title="LINE Google Lens Bot")
 
 
 def build_instruction_message() -> str:
-    return "請直接傳圖片給我，我會先找三麗鷗官網連結，沒有的話回傳第一個 .jp 網域結果。"
+    return "Send one image. I will reply with the best matching .jp URL."
+
+
+def build_busy_message() -> str:
+    return "Another image is still being processed. Please wait a moment and try again."
+
+
+def build_error_message() -> str:
+    return "Image lookup failed. Please try again in a moment."
 
 
 @app.on_event("startup")
@@ -34,6 +43,8 @@ async def startup() -> None:
 
     app.state.settings = settings
     app.state.http = httpx.AsyncClient()
+    app.state.lookup_state_lock = asyncio.Lock()
+    app.state.lookup_in_progress = False
     logger.info("Service started")
 
 
@@ -72,31 +83,45 @@ async def _handle_image_event(event: dict[str, Any]) -> str:
     if content_provider.get("type") not in (None, "line"):
         raise RuntimeError("Only LINE-hosted image content is supported")
 
-    content, content_type = await fetch_message_content(client, settings.line_channel_access_token, message_id)
-    suffix = ".jpg"
-    if content_type and "png" in content_type:
-        suffix = ".png"
-    elif content_type and "webp" in content_type:
-        suffix = ".webp"
+    lookup_state_lock: asyncio.Lock = app.state.lookup_state_lock
+    async with lookup_state_lock:
+        if app.state.lookup_in_progress:
+            logger.info("Skipping image %s because another lookup is already in progress", message_id)
+            return build_busy_message()
+        app.state.lookup_in_progress = True
 
     tmp_path: Path | None = None
     try:
+        content, content_type = await fetch_message_content(client, settings.line_channel_access_token, message_id)
+        suffix = ".jpg"
+        if content_type and "png" in content_type:
+            suffix = ".png"
+        elif content_type and "webp" in content_type:
+            suffix = ".webp"
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp.write(content)
             tmp_path = Path(tmp.name)
 
-        lookup = await find_preferred_url(
-            tmp_path,
-            session_name=f"line-image-{message_id}",
-            cli_command=settings.playwright_cli_command or None,
-            headless=settings.playwright_headless,
-            fallback_to_headed=settings.playwright_fallback_to_headed,
+        lookup = await asyncio.wait_for(
+            find_preferred_url(
+                tmp_path,
+                session_name=f"line-image-{message_id}",
+                cli_command=settings.playwright_cli_command or None,
+                headless=settings.playwright_headless,
+                fallback_to_headed=settings.playwright_fallback_to_headed,
+            ),
+            timeout=settings.lookup_timeout_seconds,
         )
         logger.info("Matched %s via %s", lookup.matched_url, lookup.matched_rule)
         return lookup.matched_url
+    except asyncio.TimeoutError as exc:
+        raise RuntimeError(f"Image lookup timed out after {settings.lookup_timeout_seconds:.0f}s") from exc
     finally:
         if tmp_path and tmp_path.exists():
             tmp_path.unlink(missing_ok=True)
+        async with lookup_state_lock:
+            app.state.lookup_in_progress = False
 
 
 async def _build_reply_text(event: dict[str, Any]) -> str | None:
@@ -111,9 +136,9 @@ async def _build_reply_text(event: dict[str, Any]) -> str | None:
     if message_type == "image":
         try:
             return await _handle_image_event(event)
-        except Exception as exc:
+        except Exception:
             logger.exception("Image lookup failed")
-            return f"查找失敗：{exc}"
+            return build_error_message()
 
     return build_instruction_message()
 
