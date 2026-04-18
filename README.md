@@ -21,12 +21,14 @@ Required:
 
 Recommended for Zeabur:
 
-- `PLAYWRIGHT_CLI_COMMAND=xvfb-run -a playwright-cli`
 - `PLAYWRIGHT_HEADLESS=true`
 
 If Google Lens starts returning anti-bot pages in headless mode, switch to:
 
 - `PLAYWRIGHT_HEADLESS=false`
+- `PLAYWRIGHT_CLI_COMMAND=xvfb-run -a playwright-cli`
+
+Do not use `xvfb-run -a playwright-cli` together with `PLAYWRIGHT_HEADLESS=true`. In headless mode that wrapper can tear down the session between CLI calls.
 
 ## Local Run
 

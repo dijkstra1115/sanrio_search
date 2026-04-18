@@ -24,7 +24,22 @@ class LensLookupResult:
 def _default_cli_command() -> str:
     if platform.system().lower().startswith("win"):
         return "playwright-cli.cmd"
-    return "xvfb-run -a playwright-cli"
+    return "playwright-cli"
+
+
+def _resolve_cli_command(cli_command: str | None, *, headless: bool) -> str:
+    command = cli_command or os.getenv("PLAYWRIGHT_CLI_COMMAND", "").strip()
+    if not command:
+        if platform.system().lower().startswith("win"):
+            return _default_cli_command()
+        return "playwright-cli" if headless else "xvfb-run -a playwright-cli"
+
+    if not platform.system().lower().startswith("win") and headless:
+        parts = shlex.split(command)
+        if parts and parts[0] == "xvfb-run":
+            return parts[-1]
+
+    return command
 
 
 def _command_parts(command: str) -> list[str]:
@@ -69,7 +84,7 @@ async def find_preferred_url(
     if not image_path.exists():
         raise FileNotFoundError(f"Image not found: {image_path}")
 
-    cli_command = cli_command or os.getenv("PLAYWRIGHT_CLI_COMMAND", "").strip() or _default_cli_command()
+    cli_command = _resolve_cli_command(cli_command, headless=headless)
     session_arg = f"-s={session_name}"
     extract_script = (Path(__file__).parent / "scripts" / "extract_preferred_url.js").resolve()
     open_args = [session_arg, "open", "https://www.google.com/?hl=ja"]
