@@ -16,10 +16,10 @@ if ($LASTEXITCODE -ne 0) {
 
 $dockerArgs = @(
     "run", "--rm",
-    "-v", "${imageDir}:/input",
+    "-v", "${imageDir}:/app/input",
     $Tag,
-    "python", "/app/app/scripts/smoke_lookup.py",
-    "--image-path", "/input/$imageFile"
+    "python", "-m", "app.scripts.smoke_lookup",
+    "--image-path", "/app/input/$imageFile"
 )
 
 if ($Headed) {
