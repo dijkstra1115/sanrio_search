@@ -26,6 +26,7 @@ class Settings:
     log_level: str
     playwright_cli_command: str
     playwright_headless: bool
+    playwright_fallback_to_headed: bool
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -35,5 +36,6 @@ class Settings:
             app_base_url=os.getenv("APP_BASE_URL", "").strip(),
             log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
             playwright_cli_command=os.getenv("PLAYWRIGHT_CLI_COMMAND", "").strip(),
-            playwright_headless=_env_flag("PLAYWRIGHT_HEADLESS", default=True),
+            playwright_headless=_env_flag("PLAYWRIGHT_HEADLESS", default=False),
+            playwright_fallback_to_headed=_env_flag("PLAYWRIGHT_FALLBACK_TO_HEADED", default=False),
         )

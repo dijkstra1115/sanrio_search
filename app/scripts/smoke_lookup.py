@@ -19,7 +19,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--image-path", required=True, help="Path to the local image file.")
     parser.add_argument("--session-name", help="Optional playwright-cli session name.")
     parser.add_argument("--cli-command", help="Optional override for the playwright-cli command.")
-    parser.add_argument("--headed", action="store_true", help="Run the browser in headed mode.")
+    mode_group = parser.add_mutually_exclusive_group()
+    mode_group.add_argument("--headed", action="store_true", help="Run the browser in headed mode.")
+    mode_group.add_argument("--headless", action="store_true", help="Run the browser in headless mode.")
     parser.add_argument("--json", action="store_true", help="Print structured JSON output.")
     return parser.parse_args()
 
@@ -28,12 +30,13 @@ async def _main() -> int:
     args = parse_args()
     image_path = Path(args.image_path).expanduser().resolve()
     session_name = args.session_name or f"smoke-{uuid.uuid4().hex[:10]}"
+    use_headless = args.headless
 
     result = await find_preferred_url(
         image_path,
         session_name=session_name,
         cli_command=args.cli_command,
-        headless=not args.headed,
+        headless=use_headless,
     )
 
     if args.json:
@@ -45,7 +48,7 @@ async def _main() -> int:
                     "matched_text": result.matched_text,
                     "matched_rule": result.matched_rule,
                     "session_name": session_name,
-                    "headless": not args.headed,
+                    "headless": use_headless,
                 },
                 ensure_ascii=False,
             )

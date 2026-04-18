@@ -21,14 +21,16 @@ Required:
 
 Recommended for Zeabur:
 
-- `PLAYWRIGHT_HEADLESS=true`
-
-If Google Lens starts returning anti-bot pages in headless mode, switch to:
-
 - `PLAYWRIGHT_HEADLESS=false`
 - `PLAYWRIGHT_CLI_COMMAND=xvfb-run -a playwright-cli`
 
+If you want to experiment with lower resource usage later, switch to:
+
+- `PLAYWRIGHT_HEADLESS=true`
+- `PLAYWRIGHT_FALLBACK_TO_HEADED=true`
+
 Do not use `xvfb-run -a playwright-cli` together with `PLAYWRIGHT_HEADLESS=true`. In headless mode that wrapper can tear down the session between CLI calls.
+The current default is headed mode because Google Lens uploads are currently being redirected to `/sorry/` in headless mode.
 
 ## Local Run
 
@@ -43,6 +45,8 @@ Run the same lookup flow locally before redeploying:
 ```bash
 python -m app.scripts.smoke_lookup --image-path ./messageImage_1776450410880.jpg --json
 ```
+
+Use `--headless` only when you explicitly want to test the lower-resource mode.
 
 To mimic the Zeabur container locally:
 
