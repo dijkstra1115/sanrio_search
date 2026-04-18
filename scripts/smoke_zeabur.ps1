@@ -23,7 +23,7 @@ $dockerArgs = @(
 )
 
 if ($Headed) {
-    $dockerArgs += @("--headed", "--cli-command", "xvfb-run -a playwright-cli")
+    $dockerArgs += @("--headed", "--cli-command", "playwright-cli")
 }
 
 docker @dockerArgs
