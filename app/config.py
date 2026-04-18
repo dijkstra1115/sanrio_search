@@ -11,6 +11,13 @@ def _require_env(name: str) -> str:
     return value
 
 
+def _env_flag(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 @dataclass(frozen=True)
 class Settings:
     line_channel_secret: str
@@ -18,6 +25,7 @@ class Settings:
     app_base_url: str
     log_level: str
     playwright_cli_command: str
+    playwright_headless: bool
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -27,4 +35,5 @@ class Settings:
             app_base_url=os.getenv("APP_BASE_URL", "").strip(),
             log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
             playwright_cli_command=os.getenv("PLAYWRIGHT_CLI_COMMAND", "").strip(),
+            playwright_headless=_env_flag("PLAYWRIGHT_HEADLESS", default=True),
         )

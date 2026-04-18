@@ -64,6 +64,7 @@ async def find_preferred_url(
     *,
     session_name: str,
     cli_command: str | None = None,
+    headless: bool = True,
 ) -> LensLookupResult:
     if not image_path.exists():
         raise FileNotFoundError(f"Image not found: {image_path}")
@@ -71,9 +72,12 @@ async def find_preferred_url(
     cli_command = cli_command or os.getenv("PLAYWRIGHT_CLI_COMMAND", "").strip() or _default_cli_command()
     session_arg = f"-s={session_name}"
     extract_script = (Path(__file__).parent / "scripts" / "extract_preferred_url.js").resolve()
+    open_args = [session_arg, "open", "https://www.google.com/?hl=ja"]
+    if not headless:
+        open_args.append("--headed")
 
     try:
-        await _run_cli(cli_command, session_arg, "open", "https://www.google.com/?hl=ja", "--headed")
+        await _run_cli(cli_command, *open_args)
         await _run_cli(cli_command, session_arg, "resize", "1440", "1100")
         await _run_cli(cli_command, session_arg, "click", IMAGE_SEARCH_TARGET)
         await _run_cli(cli_command, session_arg, "click", UPLOAD_BUTTON_TARGET)

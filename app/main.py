@@ -89,6 +89,7 @@ async def _handle_image_event(event: dict[str, Any]) -> str:
             tmp_path,
             session_name=f"line-image-{message_id}",
             cli_command=settings.playwright_cli_command or None,
+            headless=settings.playwright_headless,
         )
         logger.info("Matched %s via %s", lookup.matched_url, lookup.matched_rule)
         return lookup.matched_url
